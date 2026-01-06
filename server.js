@@ -8,65 +8,73 @@ const io = new Server(server);
 
 app.use(express.static("public"));
 
+let waitingUsers = [];
+let pairs = new Map();
 let onlineUsers = 0;
-let waitingUser = null;
-const pairs = new Map();
 
 io.on("connection", (socket) => {
   onlineUsers++;
-  io.emit("online-users", onlineUsers);
+  io.emit("online-count", onlineUsers);
 
-  socket.on("start", () => {
-    if (waitingUser && waitingUser !== socket.id) {
-      pairs.set(socket.id, waitingUser);
-      pairs.set(waitingUser, socket.id);
+  // START CHAT
+  socket.on("start-chat", () => {
+    if (waitingUsers.includes(socket.id)) return;
 
-      io.to(socket.id).emit("matched");
-      io.to(waitingUser).emit("matched");
+    if (waitingUsers.length > 0) {
+      const partnerId = waitingUsers.shift();
 
-      waitingUser = null;
+      pairs.set(socket.id, partnerId);
+      pairs.set(partnerId, socket.id);
+
+      io.to(socket.id).emit("connected");
+      io.to(partnerId).emit("connected");
     } else {
-      waitingUser = socket.id;
+      waitingUsers.push(socket.id);
       socket.emit("waiting");
     }
   });
 
+  // MESSAGE
   socket.on("message", (msg) => {
-    const partner = pairs.get(socket.id);
-    if (partner) {
-      io.to(partner).emit("message", msg);
+    const partnerId = pairs.get(socket.id);
+    if (partnerId) {
+      io.to(partnerId).emit("message", msg);
     }
   });
 
-  socket.on("typing", () => {
-    const partner = pairs.get(socket.id);
-    if (partner) io.to(partner).emit("typing");
-  });
-
+  // NEXT STRANGER
   socket.on("next", () => {
-    const partner = pairs.get(socket.id);
-    if (partner) {
-      pairs.delete(partner);
-      io.to(partner).emit("disconnected");
+    const partnerId = pairs.get(socket.id);
+
+    if (partnerId) {
+      pairs.delete(partnerId);
+      io.to(partnerId).emit("partner-left");
     }
+
     pairs.delete(socket.id);
-    waitingUser = socket.id;
+    waitingUsers = waitingUsers.filter(id => id !== socket.id);
+
+    waitingUsers.push(socket.id);
     socket.emit("waiting");
   });
 
+  // DISCONNECT
   socket.on("disconnect", () => {
     onlineUsers--;
-    io.emit("online-users", onlineUsers);
+    io.emit("online-count", onlineUsers);
 
-    const partner = pairs.get(socket.id);
-    if (partner) {
-      pairs.delete(partner);
-      io.to(partner).emit("disconnected");
+    waitingUsers = waitingUsers.filter(id => id !== socket.id);
+
+    const partnerId = pairs.get(socket.id);
+    if (partnerId) {
+      pairs.delete(partnerId);
+      io.to(partnerId).emit("partner-left");
     }
-    pairs.delete(socket.id);
 
-    if (waitingUser === socket.id) waitingUser = null;
+    pairs.delete(socket.id);
   });
 });
 
-server.listen(3000, () => console.log("Server running"));
+server.listen(3000, () => {
+  console.log("Server running on port 3000");
+});
