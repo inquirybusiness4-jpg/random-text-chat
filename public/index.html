@@ -1,174 +1,145 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+<meta charset="UTF-8" />
+<title>Random Text Chat</title>
 
-  <!-- ✅ Google Search Console Verification -->
-  <meta name="google-site-verification" content="NKQFJ09NygYKwz4msUOEDpW37Pg6AG7mc1RWYaQbUyE" />
+<meta name="google-site-verification" content="NKQFJ09NygYKwz4msUOEDpW37Pg6AG7mc1RWYaQbUyE" />
 
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Random Text Chat</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- SEO -->
-  <meta name="description" content="Random anonymous text chat with strangers. Safe, fast & anonymous." />
-  <meta name="robots" content="index, follow" />
+<script src="/socket.io/socket.io.js"></script>
 
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', sans-serif;
-      background: radial-gradient(circle at top, #3a1c71, #000);
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      color: #fff;
-    }
-
-    .app {
-      width: 95%;
-      max-width: 420px;
-      background: #0b0b15;
-      border-radius: 20px;
-      box-shadow: 0 0 40px rgba(0,255,255,.3);
-      overflow: hidden;
-    }
-
-    .header {
-      padding: 15px;
-      text-align: center;
-      background: linear-gradient(90deg,#ff00cc,#3333ff);
-    }
-
-    .online {
-      font-size: 14px;
-      margin-top: 5px;
-      color: #b6ffb6;
-    }
-
-    .status {
-      text-align: center;
-      padding: 8px;
-      font-size: 14px;
-      color: #aaa;
-    }
-
-    .chat {
-      height: 300px;
-      padding: 10px;
-      overflow-y: auto;
-    }
-
-    .msg {
-      background: linear-gradient(90deg,#00f2ff,#00ff88);
-      color: #000;
-      padding: 10px;
-      border-radius: 12px;
-      margin-bottom: 10px;
-      max-width: 80%;
-    }
-
-    .typing {
-      font-size: 13px;
-      color: #00f2ff;
-      padding: 5px 10px;
-    }
-
-    .input-box {
-      display: flex;
-      padding: 10px;
-      background: #000;
-      gap: 8px;
-    }
-
-    input {
-      flex: 1;
-      padding: 10px;
-      border-radius: 10px;
-      border: none;
-      outline: none;
-    }
-
-    button {
-      padding: 10px 14px;
-      border-radius: 10px;
-      border: none;
-      cursor: pointer;
-      background: linear-gradient(90deg,#00f2ff,#00ff88);
-      font-weight: bold;
-    }
-
-    .footer {
-      text-align: center;
-      font-size: 12px;
-      padding: 8px;
-      color: #777;
-    }
-
-    .age {
-      font-size: 12px;
-      color: #ff7777;
-    }
-  </style>
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+}
+.app{
+  width:95%;
+  max-width:420px;
+  background:#0b1220;
+  border-radius:20px;
+  box-shadow:0 0 40px #00ffd5;
+  overflow:hidden;
+}
+.header{
+  background:linear-gradient(90deg,#ff00cc,#3333ff);
+  color:white;
+  text-align:center;
+  padding:15px;
+}
+.status{
+  text-align:center;
+  padding:10px;
+  color:#00ffd5;
+}
+.chat{
+  height:320px;
+  overflow-y:auto;
+  padding:10px;
+}
+.msg{
+  background:#00ffd5;
+  color:black;
+  padding:10px;
+  margin:5px 0;
+  border-radius:15px;
+}
+.input{
+  display:flex;
+  padding:10px;
+}
+input{
+  flex:1;
+  padding:10px;
+  border-radius:10px;
+  border:none;
+}
+button{
+  margin-left:5px;
+  padding:10px 15px;
+  border:none;
+  border-radius:10px;
+  background:#00ff88;
+  cursor:pointer;
+}
+</style>
 </head>
 
 <body>
-
 <div class="app">
   <div class="header">
-    <h2>Random Text Chat</h2>
-    <div class="online">🟢 Online: <span id="online">1</span></div>
+    <h3>Random Text Chat</h3>
+    <small>🟢 Online: <span id="online">0</span></small>
   </div>
 
-  <div class="status" id="status">🔍 Looking for stranger...</div>
+  <div class="status" id="status">Click Start</div>
+  <div class="chat" id="chat"></div>
 
-  <div class="chat" id="chat">
-    <div class="msg">Hi 👋</div>
-  </div>
-
-  <div class="typing" id="typing" style="display:none;">Stranger is typing...</div>
-
-  <div class="input-box">
-    <input type="text" id="msg" placeholder="Type message..." />
-    <button onclick="sendMsg()">Send</button>
+  <div class="input">
+    <input id="msg" placeholder="Type message..." />
+    <button onclick="send()">Send</button>
     <button onclick="next()">Next</button>
   </div>
 
-  <div class="footer">
-    <div class="age">⚠️ 18+ Only | Anonymous Chat</div>
-    <div>Privacy Policy • Terms</div>
-  </div>
+  <button onclick="start()" style="width:100%;margin:10px;">Start Chat</button>
 </div>
 
 <script>
-  // Fake online counter (demo)
-  setInterval(() => {
-    document.getElementById("online").innerText =
-      Math.floor(Math.random() * 20) + 1;
-  }, 3000);
+const socket = io();
+const chat = document.getElementById("chat");
+const status = document.getElementById("status");
 
-  function sendMsg() {
-    const input = document.getElementById("msg");
-    if (!input.value) return;
+socket.on("online-count", c => {
+  document.getElementById("online").innerText = c;
+});
 
-    const div = document.createElement("div");
-    div.className = "msg";
-    div.innerText = input.value;
-    document.getElementById("chat").appendChild(div);
-    input.value = "";
+socket.on("waiting", () => {
+  status.innerText = "🔍 Looking for stranger...";
+});
 
-    document.getElementById("typing").style.display = "block";
-    setTimeout(() => {
-      document.getElementById("typing").style.display = "none";
-    }, 1500);
-  }
+socket.on("connected", () => {
+  status.innerText = "✅ Connected to stranger";
+});
 
-  function next() {
-    document.getElementById("chat").innerHTML = "";
-    document.getElementById("status").innerText = "🔍 Looking for stranger...";
-  }
+socket.on("partner-left", () => {
+  status.innerText = "❌ Stranger disconnected";
+});
+
+socket.on("message", msg => {
+  addMsg("Stranger: " + msg);
+});
+
+function start(){
+  socket.emit("start-chat");
+}
+
+function send(){
+  const m = msg.value.trim();
+  if(!m) return;
+  socket.emit("message", m);
+  addMsg("You: " + m);
+  msg.value="";
+}
+
+function next(){
+  chat.innerHTML="";
+  socket.emit("next");
+}
+
+function addMsg(t){
+  const d=document.createElement("div");
+  d.className="msg";
+  d.innerText=t;
+  chat.appendChild(d);
+  chat.scrollTop=chat.scrollHeight;
+}
 </script>
-
 </body>
 </html>
