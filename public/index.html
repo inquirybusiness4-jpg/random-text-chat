@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Random Text Chat</title>
+</head>
+<body>
+
+<h2>Random Text Chat</h2>
+
+<label>Your Gender:</label>
+<select id="gender">
+  <option value="male">Male</option>
+  <option value="female">Female</option>
+</select>
+
+<br><br>
+
+<label>Chat With:</label>
+<select id="want">
+  <option value="any">Anyone</option>
+  <option value="male">Male</option>
+  <option value="female">Female</option>
+</select>
+
+<br><br>
+
+<button onclick="startChat()">Start Chat</button>
+
+<hr>
+
+<div id="chatBox"></div>
+
+<input id="message" placeholder="Type message">
+<button onclick="sendMessage()">Send</button>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="script.js"></script>
+
+</body>
+</html>
