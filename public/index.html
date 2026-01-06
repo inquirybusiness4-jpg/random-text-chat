@@ -3,6 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <title>Random Text Chat</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 15px;
+    }
+    #chatBox {
+      border: 1px solid #ccc;
+      height: 300px;
+      overflow-y: auto;
+      padding: 10px;
+      margin-top: 10px;
+    }
+    .you { color: green; }
+    .stranger { color: blue; }
+  </style>
 </head>
 <body>
 
@@ -27,43 +42,46 @@
 
 <button onclick="startChat()">Start Chat</button>
 
-<hr>
-
 <div id="chatBox"></div>
+
+<br>
 
 <input id="message" placeholder="Type message">
 <button onclick="sendMessage()">Send</button>
 
 <script src="/socket.io/socket.io.js"></script>
-<script src="script.js"></script>
+<script>
+  const socket = io();
+  const chatBox = document.getElementById("chatBox");
 
-</body><div class="app">
-  <h1>Random Text Chat</h1>
+  function addMsg(text, cls) {
+    const p = document.createElement("p");
+    p.className = cls;
+    p.innerText = text;
+    chatBox.appendChild(p);
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
 
-  <div class="controls">
-    <label>Your Gender:
-      <select id="gender">
-        <option>Male</option>
-        <option>Female</option>
-      </select>
-    </label>
+  function startChat() {
+    socket.emit("start", {
+      gender: gender.value,
+      want: want.value
+    });
+    addMsg("Connected to stranger", "");
+  }
 
-    <label>Chat With:
-      <select id="want">
-        <option>Anyone</option>
-        <option>Male</option>
-        <option>Female</option>
-      </select>
-    </label>
+  function sendMessage() {
+    const msg = message.value;
+    if (!msg) return;
+    socket.emit("msg", msg);
+    addMsg("You: " + msg, "you");
+    message.value = "";
+  }
 
-    <button onclick="startChat()">Start Chat</button>
-  </div>
+  socket.on("msg", msg => {
+    addMsg("Stranger: " + msg, "stranger");
+  });
+</script>
 
-  <div id="chatBox" class="chat-box"></div>
-
-  <div class="input-box">
-    <input id="message" placeholder="Type message..." />
-    <button onclick="sendMessage()">Send</button>
-  </div>
-</div>
+</body>
 </html>
