@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://random-text-chat.onrender.com/sitemap.xml
