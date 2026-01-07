@@ -100,6 +100,21 @@ button{
 </div>
 
 <script>
+  function selectImage() {
+  document.getElementById("imageInput").click();
+}
+
+document.getElementById("imageInput").addEventListener("change", function () {
+  const file = this.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function () {
+    socket.emit("image", reader.result);
+    addImage("You", reader.result);
+  };
+  reader.readAsDataURL(file);
+});
 const socket = io();
 const chat = document.getElementById("chat");
 const status = document.getElementById("status");
