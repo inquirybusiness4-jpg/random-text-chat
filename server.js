@@ -13,6 +13,7 @@ let pairs = new Map();
 let onlineUsers = 0;
 
 io.on("connection", (socket) => {
+  // ONLINE COUNT
   onlineUsers++;
   io.emit("online-count", onlineUsers);
 
@@ -42,11 +43,19 @@ io.on("connection", (socket) => {
     }
   });
 
-  // 🖼️ IMAGE MESSAGE (IMPORTANT)
+  // IMAGE MESSAGE (with id + src)
   socket.on("image", (imgData) => {
     const partnerId = pairs.get(socket.id);
     if (partnerId) {
       io.to(partnerId).emit("image", imgData);
+    }
+  });
+
+  // IMAGE DELETE (SYNC BOTH SIDES)
+  socket.on("delete-image", (imageId) => {
+    const partnerId = pairs.get(socket.id);
+    if (partnerId) {
+      io.to(partnerId).emit("delete-image", imageId);
     }
   });
 
