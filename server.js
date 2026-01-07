@@ -9,106 +9,71 @@ const io = new Server(server);
 app.use(express.static("public"));
 
 let waitingUsers = [];
-let pairs = new Map();
-let onlineUsers = 0;
+let online = 0;
 
-io.on("connection", (socket) => {
+io.on("connection", socket => {
+  online++;
+  io.emit("online-count", online);
 
-  // ONLINE USERS COUNT
-  onlineUsers++;
-  io.emit("online-count", onlineUsers);
-
-  // START CHAT
-  socket.on("start-chat", () => {
-    if (waitingUsers.includes(socket.id)) return;
-
-    if (waitingUsers.length > 0) {
-      const partnerId = waitingUsers.shift();
-
-      pairs.set(socket.id, partnerId);
-      pairs.set(partnerId, socket.id);
-
-      io.to(socket.id).emit("connected");
-      io.to(partnerId).emit("connected");
-    } else {
-      waitingUsers.push(socket.id);
-      socket.emit("waiting");
-    }
-  });
-
-  // TEXT MESSAGE
-  socket.on("message", (msg) => {
-    const partnerId = pairs.get(socket.id);
-    if (partnerId) {
-      io.to(partnerId).emit("message", msg);
-    }
-  });
-
-  // TYPING INDICATOR
-  socket.on("typing", () => {
-    const partnerId = pairs.get(socket.id);
-    if (partnerId) {
-      io.to(partnerId).emit("typing");
-    }
-  });
-
-  socket.on("stop-typing", () => {
-    const partnerId = pairs.get(socket.id);
-    if (partnerId) {
-      io.to(partnerId).emit("stop-typing");
-    }
-  });
-
-  // IMAGE SEND (id + src)
-  socket.on("image", (imgData) => {
-    const partnerId = pairs.get(socket.id);
-    if (partnerId) {
-      io.to(partnerId).emit("image", imgData);
-    }
-  });
-
-  // IMAGE DELETE (SYNC BOTH SIDES)
-  socket.on("delete-image", (imageId) => {
-    const partnerId = pairs.get(socket.id);
-    if (partnerId) {
-      io.to(partnerId).emit("delete-image", imageId);
-    }
-  });
-
-  // NEXT STRANGER
-  socket.on("next", () => {
-    const partnerId = pairs.get(socket.id);
-
-    if (partnerId) {
-      pairs.delete(partnerId);
-      io.to(partnerId).emit("partner-left");
-    }
-
-    pairs.delete(socket.id);
-    waitingUsers = waitingUsers.filter(id => id !== socket.id);
-
-    waitingUsers.push(socket.id);
-    socket.emit("waiting");
-  });
-
-  // DISCONNECT
   socket.on("disconnect", () => {
-    onlineUsers--;
-    io.emit("online-count", onlineUsers);
-
-    waitingUsers = waitingUsers.filter(id => id !== socket.id);
-
-    const partnerId = pairs.get(socket.id);
-    if (partnerId) {
-      pairs.delete(partnerId);
-      io.to(partnerId).emit("partner-left");
+    online--;
+    io.emit("online-count", online);
+    waitingUsers = waitingUsers.filter(s => s.id !== socket.id);
+    if (socket.partner) {
+      socket.partner.emit("partner-left");
+      socket.partner.partner = null;
     }
+  });
 
-    pairs.delete(socket.id);
+  socket.on("start-chat", pref => {
+    socket.genderPref = pref || "any";
+    pairUser(socket);
+  });
+
+  socket.on("next", () => {
+    if (socket.partner) {
+      socket.partner.emit("partner-left");
+      socket.partner.partner = null;
+    }
+    socket.partner = null;
+    pairUser(socket);
+  });
+
+  socket.on("message", msg => {
+    if (socket.partner) socket.partner.emit("message", msg);
+  });
+
+  socket.on("image", img => {
+    if (socket.partner) socket.partner.emit("image", img);
+  });
+
+  socket.on("delete-image", id => {
+    if (socket.partner) socket.partner.emit("delete-image", id);
+  });
+
+  socket.on("typing", () => {
+    if (socket.partner) socket.partner.emit("typing");
   });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
-});
+function pairUser(socket) {
+  const index = waitingUsers.findIndex(u =>
+    u.genderPref === "any" ||
+    socket.genderPref === "any" ||
+    u.genderPref === socket.genderPref
+  );
+
+  if (index !== -1) {
+    const partner = waitingUsers.splice(index, 1)[0];
+    socket.partner = partner;
+    partner.partner = socket;
+
+    socket.emit("connected");
+    partner.emit("connected");
+  } else {
+    waitingUsers.push(socket);
+    socket.emit("waiting");
+  }
+}
+
+server.listen(3000, () => console.log("Server running"));
