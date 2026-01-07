@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Neon Chat</title>
+<title>Random Text Chat</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="/socket.io/socket.io.js"></script>
 
@@ -81,8 +81,11 @@ button{
 
 <body>
 <div class="app">
-  <div class="header">⚡ Random Neon Chat</div>
-  <div class="status" id="status">Start chat</div>
+  <div class="header">
+    ⚡ Random Chat — Online: <span id="online">0</span>
+  </div>
+
+  <div class="status" id="status">Click Start</div>
   <div class="chat" id="chat"></div>
 
   <input type="file" id="img" accept="image/*" hidden>
@@ -94,7 +97,7 @@ button{
     <button onclick="next()">⏭</button>
   </div>
 
-  <button onclick="start()" style="width:100%">Start</button>
+  <button onclick="start()" style="width:100%">Start Chat</button>
 </div>
 
 <script>
@@ -102,6 +105,32 @@ const socket = io();
 const chat = document.getElementById("chat");
 const imgInput = document.getElementById("img");
 const status = document.getElementById("status");
+const msg = document.getElementById("msg");
+
+/* SOCKET EVENTS */
+socket.on("online-count", c => {
+  document.getElementById("online").innerText = c;
+});
+
+socket.on("connected", () => {
+  status.innerText = "✅ Connected to stranger";
+});
+
+socket.on("waiting", () => {
+  status.innerText = "🔍 Looking for stranger...";
+});
+
+socket.on("partner-left", () => {
+  status.innerText = "❌ Stranger disconnected";
+});
+
+socket.on("typing", () => {
+  status.innerText = "✍ Stranger is typing...";
+});
+
+socket.on("stop-typing", () => {
+  status.innerText = "✅ Connected to stranger";
+});
 
 socket.on("message", m => addText("Stranger", m));
 socket.on("image", d => addImage("Stranger", d));
@@ -110,13 +139,16 @@ socket.on("delete-image", id => {
   if(el) el.remove();
 });
 
+/* ACTIONS */
 function start(){ socket.emit("start-chat"); }
+
 function send(){
   if(!msg.value) return;
   socket.emit("message", msg.value);
   addText("You", msg.value);
   msg.value="";
 }
+
 function next(){
   chat.innerHTML="";
   socket.emit("next");
@@ -124,24 +156,39 @@ function next(){
 
 function pick(){ imgInput.click(); }
 
+/* TYPING */
+msg.addEventListener("input", () => {
+  socket.emit("typing");
+  clearTimeout(window.tmr);
+  window.tmr = setTimeout(() => socket.emit("stop-typing"), 700);
+});
+
+/* IMAGE */
 imgInput.onchange = () => {
   const f = imgInput.files[0];
-  if(!f || f.size > 2*1024*1024) return alert("Max 2MB");
+  if(!f) return;
+
+  if(f.size > 2 * 1024 * 1024){
+    alert("Image must be under 2 MB");
+    return;
+  }
 
   const r = new FileReader();
   r.onload = () => {
-    const id = "img_"+Date.now();
+    const id = "img_" + Date.now();
     socket.emit("image",{id,src:r.result});
     addImage("You",{id,src:r.result});
   };
   r.readAsDataURL(f);
 };
 
+/* UI HELPERS */
 function addText(who, txt){
   const d=document.createElement("div");
   d.className="msg";
   d.innerHTML=`<b>${who}:</b> ${txt}`;
   chat.appendChild(d);
+  chat.scrollTop=chat.scrollHeight;
 }
 
 function addImage(who,data){
@@ -164,6 +211,7 @@ function addImage(who,data){
     d.appendChild(b);
   }
   chat.appendChild(d);
+  chat.scrollTop=chat.scrollHeight;
 }
 </script>
 </body>
