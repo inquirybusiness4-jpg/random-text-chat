@@ -52,6 +52,14 @@ body{
   border-radius:15px;
 }
 .input{
+  <div class="input">
+  <input type="file" id="imageInput" accept="image/*" hidden />
+  <button onclick="selectImage()">📷</button>
+
+  <input id="msg" placeholder="Type message..." />
+  <button onclick="send()">Send</button>
+  <button onclick="next()">Next</button>
+</div>
   display:flex;
   padding:10px;
 }
