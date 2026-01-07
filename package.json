@@ -1,7 +1,6 @@
 {
   "name": "random-text-chat",
   "version": "1.0.0",
-  "description": "Random text chat with strangers",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
