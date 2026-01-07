@@ -1,149 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Random Text Chat – Chat with Strangers</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Chat anonymously with random strangers online. Free random chat with boys and girls.">
+
+<script src="/socket.io/socket.io.js"></script>
+
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+}
+.app{
+  width:95%;
+  max-width:420px;
+  background:#0b1220;
+  border-radius:20px;
+  box-shadow:0 0 30px #00ffd5;
+  overflow:hidden;
+}
+.header{
+  background:linear-gradient(90deg,#ff00cc,#3333ff);
+  color:white;
+  text-align:center;
+  padding:14px;
+}
+.status,.typing{
+  text-align:center;
+  color:#00ffd5;
+  font-size:13px;
+}
+.chat{
+  height:300px;
+  overflow-y:auto;
+  padding:10px;
+}
+.msg{
+  background:#1f2937;
+  color:white;
+  padding:10px;
+  margin:6px 0;
+  border-radius:14px;
+}
+.msg img{max-width:100%;border-radius:10px;}
+.input{display:flex;gap:6px;padding:10px;}
+input{flex:1;padding:10px;border-radius:10px;border:none;}
+button{padding:10px;border-radius:10px;border:none;background:#00ff88;font-weight:bold;}
+.gender{display:flex;gap:6px;padding:10px;}
+.gender button{flex:1;background:#111;color:#00ffd5;border:1px solid #00ffd5;}
+.gender button.active{background:#00ffd5;color:#000;}
+.footer{text-align:center;font-size:12px;color:#aaa;padding:6px;}
+.del-btn{background:#ff4d4d;color:white;font-size:12px;margin-top:5px;}
+</style>
+</head>
+
+<body>
+
+<audio id="connectSound" src="https://assets.mixkit.co/sfx/preview/mixkit-positive-interface-beep-221.mp3"></audio>
+<audio id="disconnectSound" src="https://assets.mixkit.co/sfx/preview/mixkit-interface-error-2573.mp3"></audio>
+
+<div class="app">
+  <div class="header">
+    <h3>Random Text Chat</h3>
+    🟢 Online: <span id="online">0</span>
+  </div>
+
+  <div class="gender">
+    <button onclick="setGender('girls')">👧 Girls</button>
+    <button onclick="setGender('boys')">👦 Boys</button>
+    <button onclick="setGender('any')" class="active">🌐 Any</button>
+  </div>
+
+  <div class="status" id="status">Click Start</div>
+  <div class="typing" id="typing"></div>
+  <div class="chat" id="chat"></div>
+
+  <input type="file" id="imageInput" hidden accept="image/*">
+
+  <div class="input">
+    <button onclick="pickImage()">📷</button>
+    <input id="msg" placeholder="Type message">
+    <button onclick="send()">Send</button>
+  </div>
+
+  <button onclick="start()" style="width:100%">Start / Next</button>
+
+  <div class="footer">Developed by @sahirdailylife</div>
+</div>
+
 <script>
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded",()=>{
 
-  /* DOM ELEMENTS (MISSING DEFINITIONS FIX) */
-  const ageBox = document.getElementById("ageBox");
-  const chat = document.getElementById("chat");
-  const typing = document.getElementById("typing");
-  const status = document.getElementById("status");
-  const msg = document.getElementById("msg");
-  const online = document.getElementById("online");
-  const imageInput = document.getElementById("imageInput");
-  const connectSound = document.getElementById("connectSound");
-  const disconnectSound = document.getElementById("disconnectSound");
+const socket=io({reconnection:true});
+const chat=document.getElementById("chat");
+const status=document.getElementById("status");
+const typing=document.getElementById("typing");
+const msg=document.getElementById("msg");
+const online=document.getElementById("online");
+const imageInput=document.getElementById("imageInput");
+const cs=document.getElementById("connectSound");
+const ds=document.getElementById("disconnectSound");
 
-  /* AGE CHECK */
-  if (localStorage.ageAccepted === "yes") {
-    ageBox.style.display = "none";
+let gender="any",connected=false,imgCount=0;
+
+window.setGender=g=>{
+  gender=g;
+  document.querySelectorAll(".gender button").forEach(b=>b.classList.remove("active"));
+  event.target.classList.add("active");
+};
+
+socket.on("online-count",c=>online.innerText=c);
+socket.on("waiting",()=>{status.innerText="🔍 Waiting...";connected=false});
+socket.on("connected",()=>{status.innerText="✅ Connected";connected=true;cs.play().catch(()=>{})});
+socket.on("partner-left",()=>{status.innerText="❌ Disconnected";connected=false;ds.play().catch(()=>{})});
+socket.on("typing",()=>{typing.innerText="Typing...";setTimeout(()=>typing.innerText="",1000)});
+socket.on("message",m=>add("Stranger",m));
+socket.on("image",o=>addImg("Stranger",o));
+socket.on("delete-image",id=>document.getElementById(id)?.remove());
+
+window.start=()=>{chat.innerHTML="";socket.emit("start-chat",gender)};
+window.send=()=>{
+  if(!msg.value||!connected)return;
+  socket.emit("message",msg.value);
+  add("You",msg.value);
+  msg.value="";
+};
+msg.oninput=()=>connected&&socket.emit("typing");
+window.pickImage=()=>connected&&imageInput.click();
+
+imageInput.onchange=()=>{
+  const f=imageInput.files[0];
+  if(!f||f.size>1e6)return alert("Max 1MB");
+  const r=new FileReader(),id="img_"+(++imgCount);
+  r.onload=()=>{
+    const d={id,src:r.result};
+    socket.emit("image",d);
+    addImg("You",d);
+  };
+  r.readAsDataURL(f);
+};
+
+function add(s,t){
+  const d=document.createElement("div");
+  d.className="msg";
+  d.innerHTML="<b>"+s+":</b> "+t;
+  chat.appendChild(d);chat.scrollTop=99999;
+}
+function addImg(s,o){
+  const d=document.createElement("div");
+  d.className="msg";d.id=o.id;
+  d.innerHTML="<b>"+s+":</b><br><img src='"+o.src+"'>";
+  if(s==="You"){
+    const b=document.createElement("button");
+    b.className="del-btn";b.innerText="❌ Delete";
+    b.onclick=()=>{socket.emit("delete-image",o.id);d.remove()};
+    d.appendChild(b);
   }
-  window.acceptAge = function () {
-    localStorage.ageAccepted = "yes";
-    ageBox.style.display = "none";
-  };
-
-  /* SOCKET */
-  const socket = io({ reconnection: true });
-
-  let gender = "any";
-  let imgCount = 0;
-  let connected = false;
-
-  /* GENDER */
-  window.setGender = function (g) {
-    gender = g;
-    document.querySelectorAll(".gender button").forEach(b => b.classList.remove("active"));
-    event.target.classList.add("active");
-  };
-
-  /* SOCKET EVENTS */
-  socket.on("online-count", c => {
-    if (online) online.innerText = c;
-  });
-
-  socket.on("waiting", () => {
-    status.innerText = "🔍 Looking for stranger...";
-    connected = false;
-  });
-
-  socket.on("connected", () => {
-    status.innerText = "✅ Connected to stranger";
-    connected = true;
-    connectSound && connectSound.play().catch(()=>{});
-  });
-
-  socket.on("partner-left", () => {
-    status.innerText = "❌ Stranger disconnected";
-    connected = false;
-    disconnectSound && disconnectSound.play().catch(()=>{});
-
-    setTimeout(() => {
-      status.innerText = "🔄 Reconnecting...";
-      socket.emit("start-chat", gender);
-    }, 1500);
-  });
-
-  socket.on("typing", () => {
-    typing.innerText = "✍ Stranger is typing...";
-    setTimeout(() => typing.innerText = "", 1200);
-  });
-
-  socket.on("message", m => addText("Stranger", m));
-  socket.on("image", o => addImage("Stranger", o));
-  socket.on("delete-image", id => document.getElementById(id)?.remove());
-
-  /* START / NEXT */
-  window.start = function () {
-    chat.innerHTML = "";
-    typing.innerText = "";
-    socket.emit("start-chat", gender);
-  };
-
-  /* SEND MESSAGE */
-  window.send = function () {
-    if (!msg.value || !connected) return;
-    socket.emit("message", msg.value);
-    addText("You", msg.value);
-    msg.value = "";
-  };
-
-  msg.addEventListener("input", () => {
-    if (connected) socket.emit("typing");
-  });
-
-  /* IMAGE */
-  window.pickImage = function () {
-    if (!connected) return;
-    imageInput.click();
-  };
-
-  imageInput.addEventListener("change", () => {
-    const file = imageInput.files[0];
-    if (!file || file.size > 1024 * 1024) {
-      alert("Image must be under 1MB");
-      return;
-    }
-
-    const reader = new FileReader();
-    const id = "img_" + (++imgCount);
-
-    reader.onload = () => {
-      const data = { id, src: reader.result };
-      socket.emit("image", data);
-      addImage("You", data);
-    };
-    reader.readAsDataURL(file);
-  });
-
-  /* UI HELPERS */
-  function addText(sender, text) {
-    const d = document.createElement("div");
-    d.className = "msg";
-    d.innerHTML = "<b>" + sender + ":</b> " + text;
-    chat.appendChild(d);
-    chat.scrollTop = 99999;
-  }
-
-  function addImage(sender, o) {
-    const d = document.createElement("div");
-    d.className = "msg";
-    d.id = o.id;
-    d.innerHTML = "<b>" + sender + ":</b><br><img src='" + o.src + "'>";
-
-    if (sender === "You") {
-      const b = document.createElement("button");
-      b.className = "del-btn";
-      b.innerText = "❌ Delete";
-      b.onclick = () => {
-        socket.emit("delete-image", o.id);
-        d.remove();
-      };
-      d.appendChild(document.createElement("br"));
-      d.appendChild(b);
-    }
-
-    chat.appendChild(d);
-    chat.scrollTop = 99999;
-  }
+  chat.appendChild(d);chat.scrollTop=99999;
+}
 
 });
 </script>
+</body>
+</html>
