@@ -4,17 +4,13 @@
 <meta charset="UTF-8">
 <title>Random Text Chat</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<meta name="description" content="Chat anonymously with random strangers. Free random chat for boys and girls.">
-<meta name="keywords" content="random chat, chat with strangers, girls chat, boys chat">
-
 <script src="/socket.io/socket.io.js"></script>
 
 <style>
 body{
   margin:0;
+  background:#0f172a;
   font-family:Arial;
-  background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
   display:flex;
   justify-content:center;
   align-items:center;
@@ -23,16 +19,16 @@ body{
 .app{
   width:95%;
   max-width:420px;
-  background:#0b1220;
-  border-radius:18px;
-  box-shadow:0 0 30px #00ffd5;
+  background:#020617;
+  border-radius:20px;
+  box-shadow:0 0 30px #22c55e;
   overflow:hidden;
 }
 .header{
-  background:linear-gradient(90deg,#ff00cc,#3333ff);
-  color:white;
+  padding:15px;
   text-align:center;
-  padding:14px;
+  color:white;
+  background:linear-gradient(90deg,#9333ea,#22c55e);
 }
 .gender{
   display:flex;
@@ -41,20 +37,25 @@ body{
 }
 .gender button{
   flex:1;
-  background:#111;
-  color:#00ffd5;
-  border:1px solid #00ffd5;
+  background:#020617;
+  border:1px solid #22c55e;
+  color:#22c55e;
   padding:8px;
   border-radius:10px;
 }
 .gender button.active{
-  background:#00ffd5;
+  background:#22c55e;
   color:black;
 }
-.status, .typing{
+.status{
   text-align:center;
-  font-size:13px;
-  color:#00ffd5;
+  color:#22c55e;
+  padding:6px;
+}
+.typing{
+  text-align:center;
+  font-size:12px;
+  color:#aaa;
 }
 .chat{
   height:300px;
@@ -62,15 +63,11 @@ body{
   padding:10px;
 }
 .msg{
-  background:#1f2937;
+  background:#1e293b;
   color:white;
-  padding:10px;
+  padding:8px;
   border-radius:12px;
   margin:6px 0;
-}
-.msg img{
-  max-width:100%;
-  border-radius:10px;
 }
 .input{
   display:flex;
@@ -79,42 +76,26 @@ body{
 }
 input{
   flex:1;
-  padding:10px;
+  padding:8px;
   border-radius:10px;
   border:none;
 }
 button{
-  padding:10px;
-  border:none;
+  padding:8px 12px;
   border-radius:10px;
-  background:#00ff88;
-  font-weight:bold;
+  border:none;
+  background:#22c55e;
 }
 .footer{
   text-align:center;
   font-size:12px;
   color:#aaa;
-  padding:8px;
-}
-.del-btn{
-  background:#ff4d4d;
-  margin-top:6px;
+  padding:6px;
 }
 </style>
 </head>
 
 <body>
-
-<audio id="connectSound" src="https://assets.mixkit.co/sfx/preview/mixkit-confirmation-tone-2867.mp3"></audio>
-<audio id="disconnectSound" src="https://assets.mixkit.co/sfx/preview/mixkit-wrong-answer-fail-notification-946.mp3"></audio>
-
-<div id="ageBox" style="position:fixed;inset:0;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999">
-  <div style="background:#111;padding:20px;border-radius:14px;color:white;text-align:center">
-    <h2>⚠️ 18+ Only</h2>
-    <button onclick="acceptAge()">I am 18+</button>
-  </div>
-</div>
-
 <div class="app">
   <div class="header">
     <h3>Random Text Chat</h3>
@@ -122,83 +103,68 @@ button{
   </div>
 
   <div class="gender">
-    <button onclick="setGender('girls',this)">👧 Girls</button>
-    <button onclick="setGender('boys',this)">👦 Boys</button>
-    <button class="active" onclick="setGender('any',this)">🌐 Any</button>
+    <button onclick="setGender('girls')">👧 Girls</button>
+    <button onclick="setGender('boys')">👦 Boys</button>
+    <button class="active" onclick="setGender('any')">🌐 Any</button>
   </div>
 
   <div class="status" id="status">Click Start</div>
   <div class="typing" id="typing"></div>
-
   <div class="chat" id="chat"></div>
 
-  <input type="file" id="imageInput" hidden accept="image/*">
-
   <div class="input">
-    <button onclick="pickImage()">📷</button>
     <input id="msg" placeholder="Type message...">
     <button onclick="send()">Send</button>
   </div>
 
-  <button onclick="start()" style="width:100%">Start / Next</button>
+  <button onclick="start()" style="width:100%;margin:8px">Start / Next</button>
 
-  <div class="footer">Developed by @sahirdailylife</div>
+  <div class="footer">
+    Developed by <b>@sahirdailylife</b>
+  </div>
 </div>
 
 <script>
-document.addEventListener("DOMContentLoaded",()=>{
-
-if(localStorage.ageAccepted==="yes") ageBox.style.display="none";
-function acceptAge(){ localStorage.ageAccepted="yes"; ageBox.style.display="none"; }
-
+window.addEventListener("load", () => {
 const socket = io();
-let gender="any", connected=false, imgId=0;
+const chat = document.getElementById("chat");
+const status = document.getElementById("status");
+const typing = document.getElementById("typing");
+let gender="any", connected=false;
 
-socket.on("online-count",c=>online.innerText=c);
-socket.on("waiting",()=>{status.innerText="🔍 Waiting...";connected=false});
-socket.on("connected",()=>{status.innerText="✅ Connected";connectSound.play();connected=true});
-socket.on("partner-left",()=>{status.innerText="❌ Disconnected";disconnectSound.play();connected=false});
-
-socket.on("typing",()=>{typing.innerText="Stranger typing...";setTimeout(()=>typing.innerText="",1200)});
-socket.on("message",m=>addText("Stranger",m));
-socket.on("image",o=>addImage("Stranger",o));
-socket.on("delete-image",id=>document.getElementById(id)?.remove());
-
-function setGender(g,el){
+function setGender(g){
   gender=g;
   document.querySelectorAll(".gender button").forEach(b=>b.classList.remove("active"));
-  el.classList.add("active");
+  event.target.classList.add("active");
 }
-function start(){ chat.innerHTML=""; socket.emit("start-chat",gender); }
-function send(){ if(!connected||!msg.value)return; socket.emit("message",msg.value); addText("You",msg.value); msg.value=""; }
-msg.oninput=()=>connected&&socket.emit("typing");
-function pickImage(){ if(!connected)return; imageInput.click(); }
 
-imageInput.onchange=()=>{
-  const f=imageInput.files[0]; if(!f||f.size>1024*1024)return alert("Max 1MB");
-  const r=new FileReader(); const id="img"+(++imgId);
-  r.onload=()=>{ const d={id,src:r.result}; socket.emit("image",d); addImage("You",d); };
-  r.readAsDataURL(f);
-};
+socket.on("online-count", c => online.innerText=c);
+socket.on("waiting", ()=>{status.innerText="🔍 Waiting...";connected=false});
+socket.on("connected", ()=>{status.innerText="✅ Connected";connected=true});
+socket.on("partner-left", ()=>{status.innerText="❌ Disconnected";connected=false});
+socket.on("typing", ()=>{typing.innerText="Stranger typing...";setTimeout(()=>typing.innerText="",1000)});
+socket.on("message", m => add("Stranger",m));
 
-function addText(s,t){
+function start(){
+  chat.innerHTML="";
+  socket.emit("start-chat", gender);
+}
+
+function send(){
+  if(!msg.value || !connected) return;
+  socket.emit("message", msg.value);
+  add("You", msg.value);
+  msg.value="";
+}
+msg.oninput=()=>connected && socket.emit("typing");
+
+function add(who,txt){
   const d=document.createElement("div");
-  d.className="msg"; d.innerHTML="<b>"+s+":</b> "+t;
-  chat.appendChild(d); chat.scrollTop=99999;
+  d.className="msg";
+  d.innerHTML="<b>"+who+":</b> "+txt;
+  chat.appendChild(d);
+  chat.scrollTop=99999;
 }
-function addImage(s,o){
-  const d=document.createElement("div");
-  d.className="msg"; d.id=o.id;
-  d.innerHTML="<b>"+s+":</b><br><img src='"+o.src+"'>";
-  if(s==="You"){
-    const b=document.createElement("button");
-    b.className="del-btn"; b.innerText="Delete";
-    b.onclick=()=>{socket.emit("delete-image",o.id);d.remove();}
-    d.appendChild(b);
-  }
-  chat.appendChild(d); chat.scrollTop=99999;
-}
-
 });
 </script>
 </body>
