@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Random Text Chat – Chat with Strangers</title>
-
+<title>Random Text Chat</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Chat anonymously with random strangers online. Free random chat with boys and girls.">
+
+<meta name="description" content="Chat anonymously with random strangers. Free random chat for boys and girls.">
+<meta name="keywords" content="random chat, chat with strangers, girls chat, boys chat">
 
 <script src="/socket.io/socket.io.js"></script>
 
@@ -23,7 +24,7 @@ body{
   width:95%;
   max-width:420px;
   background:#0b1220;
-  border-radius:20px;
+  border-radius:18px;
   box-shadow:0 0 30px #00ffd5;
   overflow:hidden;
 }
@@ -33,10 +34,27 @@ body{
   text-align:center;
   padding:14px;
 }
-.status,.typing{
-  text-align:center;
+.gender{
+  display:flex;
+  gap:6px;
+  padding:10px;
+}
+.gender button{
+  flex:1;
+  background:#111;
   color:#00ffd5;
+  border:1px solid #00ffd5;
+  padding:8px;
+  border-radius:10px;
+}
+.gender button.active{
+  background:#00ffd5;
+  color:black;
+}
+.status, .typing{
+  text-align:center;
   font-size:13px;
+  color:#00ffd5;
 }
 .chat{
   height:300px;
@@ -47,31 +65,55 @@ body{
   background:#1f2937;
   color:white;
   padding:10px;
+  border-radius:12px;
   margin:6px 0;
-  border-radius:14px;
 }
-.msg img{max-width:100%;border-radius:10px;}
-.input{display:flex;gap:6px;padding:10px;}
-input{flex:1;padding:10px;border-radius:10px;border:none;}
-button{padding:10px;border-radius:10px;border:none;background:#00ff88;font-weight:bold;}
-.gender{display:flex;gap:6px;padding:10px;}
-.gender button{flex:1;background:#111;color:#00ffd5;border:1px solid #00ffd5;}
-.gender button.active{background:#00ffd5;color:#000;}
-.footer{text-align:center;font-size:12px;color:#aaa;padding:6px;}
-.del-btn{background:#ff4d4d;color:white;font-size:12px;margin-top:5px;}
+.msg img{
+  max-width:100%;
+  border-radius:10px;
+}
+.input{
+  display:flex;
+  gap:6px;
+  padding:10px;
+}
+input{
+  flex:1;
+  padding:10px;
+  border-radius:10px;
+  border:none;
+}
+button{
+  padding:10px;
+  border:none;
+  border-radius:10px;
+  background:#00ff88;
+  font-weight:bold;
+}
+.footer{
+  text-align:center;
+  font-size:12px;
+  color:#aaa;
+  padding:8px;
+}
+.del-btn{
+  background:#ff4d4d;
+  margin-top:6px;
+}
 </style>
 </head>
-<audio id="connectSound" preload="auto">
-  <source src="https://assets.mixkit.co/sfx/preview/mixkit-unlock-game-notification-253.wav" type="audio/wav">
-</audio>
 
-<audio id="disconnectSound" preload="auto">
-  <source src="https://assets.mixkit.co/sfx/preview/mixkit-click-error-1110.wav" type="audio/wav">
-</audio>
 <body>
 
-<audio id="connectSound" src="https://assets.mixkit.co/sfx/preview/mixkit-positive-interface-beep-221.mp3"></audio>
-<audio id="disconnectSound" src="https://assets.mixkit.co/sfx/preview/mixkit-interface-error-2573.mp3"></audio>
+<audio id="connectSound" src="https://assets.mixkit.co/sfx/preview/mixkit-confirmation-tone-2867.mp3"></audio>
+<audio id="disconnectSound" src="https://assets.mixkit.co/sfx/preview/mixkit-wrong-answer-fail-notification-946.mp3"></audio>
+
+<div id="ageBox" style="position:fixed;inset:0;background:#000;display:flex;align-items:center;justify-content:center;z-index:9999">
+  <div style="background:#111;padding:20px;border-radius:14px;color:white;text-align:center">
+    <h2>⚠️ 18+ Only</h2>
+    <button onclick="acceptAge()">I am 18+</button>
+  </div>
+</div>
 
 <div class="app">
   <div class="header">
@@ -80,20 +122,21 @@ button{padding:10px;border-radius:10px;border:none;background:#00ff88;font-weigh
   </div>
 
   <div class="gender">
-    <button onclick="setGender('girls')">👧 Girls</button>
-    <button onclick="setGender('boys')">👦 Boys</button>
-    <button onclick="setGender('any')" class="active">🌐 Any</button>
+    <button onclick="setGender('girls',this)">👧 Girls</button>
+    <button onclick="setGender('boys',this)">👦 Boys</button>
+    <button class="active" onclick="setGender('any',this)">🌐 Any</button>
   </div>
 
   <div class="status" id="status">Click Start</div>
   <div class="typing" id="typing"></div>
+
   <div class="chat" id="chat"></div>
 
   <input type="file" id="imageInput" hidden accept="image/*">
 
   <div class="input">
     <button onclick="pickImage()">📷</button>
-    <input id="msg" placeholder="Type message">
+    <input id="msg" placeholder="Type message...">
     <button onclick="send()">Send</button>
   </div>
 
@@ -105,72 +148,55 @@ button{padding:10px;border-radius:10px;border:none;background:#00ff88;font-weigh
 <script>
 document.addEventListener("DOMContentLoaded",()=>{
 
-const socket=io({reconnection:true});
-const chat=document.getElementById("chat");
-const status=document.getElementById("status");
-const typing=document.getElementById("typing");
-const msg=document.getElementById("msg");
-const online=document.getElementById("online");
-const imageInput=document.getElementById("imageInput");
-const cs=document.getElementById("connectSound");
-const ds=document.getElementById("disconnectSound");
+if(localStorage.ageAccepted==="yes") ageBox.style.display="none";
+function acceptAge(){ localStorage.ageAccepted="yes"; ageBox.style.display="none"; }
 
-let gender="any",connected=false,imgCount=0;
-
-window.setGender=g=>{
-  gender=g;
-  document.querySelectorAll(".gender button").forEach(b=>b.classList.remove("active"));
-  event.target.classList.add("active");
-};
+const socket = io();
+let gender="any", connected=false, imgId=0;
 
 socket.on("online-count",c=>online.innerText=c);
 socket.on("waiting",()=>{status.innerText="🔍 Waiting...";connected=false});
-socket.on("connected",()=>{status.innerText="✅ Connected";connected=true;cs.play().catch(()=>{})});
-socket.on("partner-left",()=>{status.innerText="❌ Disconnected";connected=false;ds.play().catch(()=>{})});
-socket.on("typing",()=>{typing.innerText="Typing...";setTimeout(()=>typing.innerText="",1000)});
-socket.on("message",m=>add("Stranger",m));
-socket.on("image",o=>addImg("Stranger",o));
+socket.on("connected",()=>{status.innerText="✅ Connected";connectSound.play();connected=true});
+socket.on("partner-left",()=>{status.innerText="❌ Disconnected";disconnectSound.play();connected=false});
+
+socket.on("typing",()=>{typing.innerText="Stranger typing...";setTimeout(()=>typing.innerText="",1200)});
+socket.on("message",m=>addText("Stranger",m));
+socket.on("image",o=>addImage("Stranger",o));
 socket.on("delete-image",id=>document.getElementById(id)?.remove());
 
-window.start=()=>{chat.innerHTML="";socket.emit("start-chat",gender)};
-window.send=()=>{
-  if(!msg.value||!connected)return;
-  socket.emit("message",msg.value);
-  add("You",msg.value);
-  msg.value="";
-};
+function setGender(g,el){
+  gender=g;
+  document.querySelectorAll(".gender button").forEach(b=>b.classList.remove("active"));
+  el.classList.add("active");
+}
+function start(){ chat.innerHTML=""; socket.emit("start-chat",gender); }
+function send(){ if(!connected||!msg.value)return; socket.emit("message",msg.value); addText("You",msg.value); msg.value=""; }
 msg.oninput=()=>connected&&socket.emit("typing");
-window.pickImage=()=>connected&&imageInput.click();
+function pickImage(){ if(!connected)return; imageInput.click(); }
 
 imageInput.onchange=()=>{
-  const f=imageInput.files[0];
-  if(!f||f.size>1e6)return alert("Max 1MB");
-  const r=new FileReader(),id="img_"+(++imgCount);
-  r.onload=()=>{
-    const d={id,src:r.result};
-    socket.emit("image",d);
-    addImg("You",d);
-  };
+  const f=imageInput.files[0]; if(!f||f.size>1024*1024)return alert("Max 1MB");
+  const r=new FileReader(); const id="img"+(++imgId);
+  r.onload=()=>{ const d={id,src:r.result}; socket.emit("image",d); addImage("You",d); };
   r.readAsDataURL(f);
 };
 
-function add(s,t){
+function addText(s,t){
   const d=document.createElement("div");
-  d.className="msg";
-  d.innerHTML="<b>"+s+":</b> "+t;
-  chat.appendChild(d);chat.scrollTop=99999;
+  d.className="msg"; d.innerHTML="<b>"+s+":</b> "+t;
+  chat.appendChild(d); chat.scrollTop=99999;
 }
-function addImg(s,o){
+function addImage(s,o){
   const d=document.createElement("div");
-  d.className="msg";d.id=o.id;
+  d.className="msg"; d.id=o.id;
   d.innerHTML="<b>"+s+":</b><br><img src='"+o.src+"'>";
   if(s==="You"){
     const b=document.createElement("button");
-    b.className="del-btn";b.innerText="❌ Delete";
-    b.onclick=()=>{socket.emit("delete-image",o.id);d.remove()};
+    b.className="del-btn"; b.innerText="Delete";
+    b.onclick=()=>{socket.emit("delete-image",o.id);d.remove();}
     d.appendChild(b);
   }
-  chat.appendChild(d);chat.scrollTop=99999;
+  chat.appendChild(d); chat.scrollTop=99999;
 }
 
 });
