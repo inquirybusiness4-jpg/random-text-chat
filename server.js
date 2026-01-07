@@ -7,7 +7,7 @@ const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  maxHttpBufferSize: 5e6
+  maxHttpBufferSize: 5e6 // 5MB
 });
 
 app.use(express.static(path.join(__dirname, "public")));
@@ -15,22 +15,20 @@ app.use(express.static(path.join(__dirname, "public")));
 let waiting = { any: [], boys: [], girls: [] };
 let onlineCount = 0;
 
-function removeFromAllQueues(id) {
+function removeFromQueues(id) {
   Object.keys(waiting).forEach(k => {
-    waiting[k] = waiting[k].filter(sid => sid !== id);
+    waiting[k] = waiting[k].filter(x => x !== id);
   });
 }
 
-function tryMatch(socket) {
+function match(socket) {
   const gender = socket.gender || "any";
-  const queues = gender === "any"
-    ? ["any", "boys", "girls"]
-    : ["any", gender];
+  const queues = gender === "any" ? ["any","boys","girls"] : ["any", gender];
 
-  for (const q of queues) {
+  for (let q of queues) {
     if (waiting[q].length) {
-      const partnerId = waiting[q].shift();
-      const partner = io.sockets.sockets.get(partnerId);
+      const pid = waiting[q].shift();
+      const partner = io.sockets.sockets.get(pid);
       if (partner && !partner.partner) {
         socket.partner = partner.id;
         partner.partner = socket.id;
@@ -62,8 +60,8 @@ io.on("connection", socket => {
       socket.partner = null;
     }
 
-    removeFromAllQueues(socket.id);
-    tryMatch(socket);
+    removeFromQueues(socket.id);
+    match(socket);
   });
 
   socket.on("message", msg => {
@@ -86,14 +84,14 @@ io.on("connection", socket => {
     onlineCount--;
     io.emit("online-count", onlineCount);
 
-    removeFromAllQueues(socket.id);
+    removeFromQueues(socket.id);
 
     if (socket.partner) {
       io.to(socket.partner).emit("partner-left");
       const p = io.sockets.sockets.get(socket.partner);
       if (p) {
         p.partner = null;
-        tryMatch(p);
+        match(p);
       }
     }
   });
