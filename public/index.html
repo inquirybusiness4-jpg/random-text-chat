@@ -132,10 +132,11 @@ const status = document.getElementById("status");
 const typing = document.getElementById("typing");
 let gender="any", connected=false;
 
-function setGender(g){
-  gender=g;
-  document.querySelectorAll(".gender button").forEach(b=>b.classList.remove("active"));
-  event.target.classList.add("active");
+function send(){
+  if(!msg.value) return;
+  socket.emit("message", msg.value);
+  addText("You", msg.value);
+  msg.value="";
 }
 
 socket.on("online-count", c => online.innerText=c);
@@ -156,7 +157,9 @@ function send(){
   add("You", msg.value);
   msg.value="";
 }
-msg.oninput=()=>connected && socket.emit("typing");
+msg.oninput=()=>{
+  socket.emit("typing");
+};
 
 function add(who,txt){
   const d=document.createElement("div");
