@@ -13,7 +13,8 @@ let pairs = new Map();
 let onlineUsers = 0;
 
 io.on("connection", (socket) => {
-  // ONLINE COUNT
+
+  // ONLINE USERS COUNT
   onlineUsers++;
   io.emit("online-count", onlineUsers);
 
@@ -43,7 +44,22 @@ io.on("connection", (socket) => {
     }
   });
 
-  // IMAGE MESSAGE (with id + src)
+  // TYPING INDICATOR
+  socket.on("typing", () => {
+    const partnerId = pairs.get(socket.id);
+    if (partnerId) {
+      io.to(partnerId).emit("typing");
+    }
+  });
+
+  socket.on("stop-typing", () => {
+    const partnerId = pairs.get(socket.id);
+    if (partnerId) {
+      io.to(partnerId).emit("stop-typing");
+    }
+  });
+
+  // IMAGE SEND (id + src)
   socket.on("image", (imgData) => {
     const partnerId = pairs.get(socket.id);
     if (partnerId) {
