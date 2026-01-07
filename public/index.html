@@ -1,19 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8" />
-<title>Random Text Chat</title>
-
-<meta name="google-site-verification" content="NKQFJ09NygYKwz4msUOEDpW37Pg6AG7mc1RWYaQbUyE" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
+<meta charset="UTF-8">
+<title>Neon Chat</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="/socket.io/socket.io.js"></script>
 
 <style>
 body{
   margin:0;
   font-family:Arial;
-  background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+  background:#050510;
   display:flex;
   justify-content:center;
   align-items:center;
@@ -22,186 +19,151 @@ body{
 .app{
   width:95%;
   max-width:420px;
-  background:#0b1220;
+  background:#0d0d1a;
   border-radius:20px;
-  box-shadow:0 0 40px #00ffd5;
-  overflow:hidden;
+  box-shadow:0 0 30px #7f5cff;
 }
 .header{
-  background:linear-gradient(90deg,#ff00cc,#3333ff);
-  color:white;
+  background:linear-gradient(90deg,#7f5cff,#00ffd5);
+  color:black;
   text-align:center;
-  padding:15px;
+  padding:14px;
+  font-weight:bold;
 }
 .status{
   text-align:center;
-  padding:10px;
   color:#00ffd5;
+  padding:8px;
 }
 .chat{
-  height:320px;
+  height:330px;
   overflow-y:auto;
   padding:10px;
 }
 .msg{
-  background:#00ffd5;
-  color:black;
-  padding:10px;
+  background:#111;
+  color:#fff;
+  padding:8px;
+  border-radius:12px;
   margin:6px 0;
-  border-radius:15px;
 }
 .msg img{
   max-width:100%;
-  margin-top:6px;
   border-radius:10px;
+  margin-top:5px;
 }
 .input{
   display:flex;
   gap:6px;
   padding:10px;
 }
-input[type="text"]{
+input{
   flex:1;
   padding:10px;
-  border-radius:10px;
   border:none;
+  border-radius:10px;
 }
 button{
-  padding:10px 14px;
+  padding:10px;
   border:none;
   border-radius:10px;
-  background:#00ff88;
+  background:#7f5cff;
+  color:white;
   cursor:pointer;
 }
-.del-btn{
-  background:#ff4d4d;
-  color:white;
+.del{
+  background:red;
   font-size:12px;
-  margin-top:6px;
-  padding:5px 10px;
+  margin-top:5px;
 }
 </style>
 </head>
 
 <body>
 <div class="app">
-  <div class="header">
-    <h3>Random Text Chat</h3>
-    <small>🟢 Online: <span id="online">0</span></small>
-  </div>
-
-  <div class="status" id="status">Click Start</div>
+  <div class="header">⚡ Random Neon Chat</div>
+  <div class="status" id="status">Start chat</div>
   <div class="chat" id="chat"></div>
 
-  <!-- Hidden image input -->
-  <input type="file" id="imageInput" accept="image/*" hidden />
+  <input type="file" id="img" accept="image/*" hidden>
 
   <div class="input">
-    <button onclick="selectImage()">📷</button>
-    <input id="msg" type="text" placeholder="Type message..." />
-    <button onclick="send()">Send</button>
-    <button onclick="next()">Next</button>
+    <button onclick="pick()">📷</button>
+    <input id="msg" placeholder="Type...">
+    <button onclick="send()">➤</button>
+    <button onclick="next()">⏭</button>
   </div>
 
-  <button onclick="start()" style="width:100%;margin:10px;">Start Chat</button>
+  <button onclick="start()" style="width:100%">Start</button>
 </div>
 
 <script>
 const socket = io();
 const chat = document.getElementById("chat");
+const imgInput = document.getElementById("img");
 const status = document.getElementById("status");
-const msgInput = document.getElementById("msg");
 
-/* SOCKET EVENTS */
-socket.on("online-count", c => {
-  document.getElementById("online").innerText = c;
+socket.on("message", m => addText("Stranger", m));
+socket.on("image", d => addImage("Stranger", d));
+socket.on("delete-image", id => {
+  const el = document.getElementById(id);
+  if(el) el.remove();
 });
 
-socket.on("waiting", () => {
-  status.innerText = "🔍 Looking for stranger...";
-});
-
-socket.on("connected", () => {
-  status.innerText = "✅ Connected to stranger";
-});
-
-socket.on("partner-left", () => {
-  status.innerText = "❌ Stranger disconnected";
-});
-
-socket.on("message", msg => {
-  addText("Stranger", msg);
-});
-
-socket.on("image", img => {
-  addImage("Stranger", img);
-});
-
-/* CHAT FUNCTIONS */
-function start(){
-  socket.emit("start-chat");
-}
-
+function start(){ socket.emit("start-chat"); }
 function send(){
-  const m = msgInput.value.trim();
-  if(!m) return;
-  socket.emit("message", m);
-  addText("You", m);
-  msgInput.value="";
+  if(!msg.value) return;
+  socket.emit("message", msg.value);
+  addText("You", msg.value);
+  msg.value="";
 }
-
 function next(){
   chat.innerHTML="";
   socket.emit("next");
 }
 
-/* IMAGE SEND */
-function selectImage(){
-  document.getElementById("imageInput").click();
-}
+function pick(){ imgInput.click(); }
 
-document.getElementById("imageInput").addEventListener("change", function(){
-  const file = this.files[0];
-  if(!file) return;
+imgInput.onchange = () => {
+  const f = imgInput.files[0];
+  if(!f || f.size > 2*1024*1024) return alert("Max 2MB");
 
-  const reader = new FileReader();
-  reader.onload = () => {
-    socket.emit("image", reader.result);
-    addImage("You", reader.result);
+  const r = new FileReader();
+  r.onload = () => {
+    const id = "img_"+Date.now();
+    socket.emit("image",{id,src:r.result});
+    addImage("You",{id,src:r.result});
   };
-  reader.readAsDataURL(file);
-});
+  r.readAsDataURL(f);
+};
 
-/* UI HELPERS */
-function addText(sender, text){
-  const d = document.createElement("div");
-  d.className = "msg";
-  d.innerHTML = "<b>"+sender+":</b> " + text;
+function addText(who, txt){
+  const d=document.createElement("div");
+  d.className="msg";
+  d.innerHTML=`<b>${who}:</b> ${txt}`;
   chat.appendChild(d);
-  chat.scrollTop = chat.scrollHeight;
 }
 
-function addImage(sender, src){
-  const d = document.createElement("div");
-  d.className = "msg";
+function addImage(who,data){
+  const d=document.createElement("div");
+  d.className="msg";
+  d.id=data.id;
+  d.innerHTML=`<b>${who}:</b><br>`;
+  const i=document.createElement("img");
+  i.src=data.src;
+  d.appendChild(i);
 
-  d.innerHTML = "<b>"+sender+":</b><br>";
-  const img = document.createElement("img");
-  img.src = src;
-  d.appendChild(img);
-
-  // DELETE BUTTON ONLY FOR YOU
-  if(sender === "You"){
-    const del = document.createElement("button");
-    del.className = "del-btn";
-    del.innerText = "❌ Delete";
-    del.onclick = () => d.remove();
-    d.appendChild(document.createElement("br"));
-    d.appendChild(del);
+  if(who==="You"){
+    const b=document.createElement("button");
+    b.className="del";
+    b.innerText="Delete";
+    b.onclick=()=>{
+      socket.emit("delete-image",data.id);
+      d.remove();
+    };
+    d.appendChild(b);
   }
-
   chat.appendChild(d);
-  chat.scrollTop = chat.scrollHeight;
 }
 </script>
 </body>
