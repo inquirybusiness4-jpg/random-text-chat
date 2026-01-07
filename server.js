@@ -7,7 +7,7 @@ const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  maxHttpBufferSize: 5e6 // 5MB
+  maxHttpBufferSize: 5e6
 });
 
 app.use(express.static(path.join(__dirname, "public")));
@@ -18,15 +18,17 @@ let waiting = {
   girls: []
 };
 
-let online = 0;
+let onlineCount = 0;
 
+/* REMOVE USER FROM ALL QUEUES */
 function removeFromQueues(id) {
-  Object.keys(waiting).forEach(k => {
-    waiting[k] = waiting[k].filter(x => x !== id);
+  Object.keys(waiting).forEach(g => {
+    waiting[g] = waiting[g].filter(sid => sid !== id);
   });
 }
 
-function matchUser(socket) {
+/* MATCH USERS */
+function match(socket) {
   const gender = socket.gender || "any";
   const queues = gender === "any"
     ? ["any", "boys", "girls"]
@@ -34,8 +36,8 @@ function matchUser(socket) {
 
   for (const q of queues) {
     if (waiting[q].length > 0) {
-      const pid = waiting[q].shift();
-      const partner = io.sockets.sockets.get(pid);
+      const partnerId = waiting[q].shift();
+      const partner = io.sockets.sockets.get(partnerId);
 
       if (partner && !partner.partner) {
         socket.partner = partner.id;
@@ -52,9 +54,10 @@ function matchUser(socket) {
   waiting[gender].push(socket.id);
 }
 
+/* SOCKET */
 io.on("connection", socket => {
-  online++;
-  io.emit("online-count", online);
+  onlineCount++;
+  io.emit("online-count", onlineCount);
 
   socket.partner = null;
   socket.gender = "any";
@@ -70,7 +73,7 @@ io.on("connection", socket => {
     }
 
     removeFromQueues(socket.id);
-    matchUser(socket);
+    match(socket);
   });
 
   socket.on("message", msg => {
@@ -79,27 +82,9 @@ io.on("connection", socket => {
     }
   });
 
-  socket.on("typing", () => {
-    if (socket.partner) {
-      io.to(socket.partner).emit("typing");
-    }
-  });
-
-  socket.on("image", data => {
-    if (socket.partner) {
-      io.to(socket.partner).emit("image", data);
-    }
-  });
-
-  socket.on("delete-image", id => {
-    if (socket.partner) {
-      io.to(socket.partner).emit("delete-image", id);
-    }
-  });
-
   socket.on("disconnect", () => {
-    online--;
-    io.emit("online-count", online);
+    onlineCount--;
+    io.emit("online-count", onlineCount);
 
     removeFromQueues(socket.id);
 
@@ -108,12 +93,13 @@ io.on("connection", socket => {
       const p = io.sockets.sockets.get(socket.partner);
       if (p) {
         p.partner = null;
-        matchUser(p);
+        match(p);
       }
     }
   });
 });
 
+/* START SERVER */
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log("✅ Server running on port", PORT);
