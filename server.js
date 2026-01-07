@@ -35,6 +35,13 @@ io.on("connection", (socket) => {
   });
 
   // MESSAGE
+  // IMAGE MESSAGE
+socket.on("image", (imgData) => {
+  const partnerId = pairs.get(socket.id);
+  if (partnerId) {
+    io.to(partnerId).emit("image", imgData);
+  }
+});
   socket.on("message", (msg) => {
     const partnerId = pairs.get(socket.id);
     if (partnerId) {
