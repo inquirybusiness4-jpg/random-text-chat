@@ -1,110 +1,23 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
 <title>Random Text Chat</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <script src="/socket.io/socket.io.js"></script>
-
-<style>
-body{
-  margin:0;
-  background:#0f172a;
-  font-family:Arial;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  height:100vh;
-}
-.app{
-  width:95%;
-  max-width:420px;
-  background:#020617;
-  border-radius:20px;
-  box-shadow:0 0 30px #22c55e;
-  overflow:hidden;
-}
-.header{
-  padding:15px;
-  text-align:center;
-  color:white;
-  background:linear-gradient(90deg,#9333ea,#22c55e);
-}
-.gender{
-  display:flex;
-  gap:6px;
-  padding:10px;
-}
-.gender button{
-  flex:1;
-  background:#020617;
-  border:1px solid #22c55e;
-  color:#22c55e;
-  padding:8px;
-  border-radius:10px;
-}
-.gender button.active{
-  background:#22c55e;
-  color:black;
-}
-.status{
-  text-align:center;
-  color:#22c55e;
-  padding:6px;
-}
-.typing{
-  text-align:center;
-  font-size:12px;
-  color:#aaa;
-}
-.chat{
-  height:300px;
-  overflow-y:auto;
-  padding:10px;
-}
-.msg{
-  background:#1e293b;
-  color:white;
-  padding:8px;
-  border-radius:12px;
-  margin:6px 0;
-}
-.input{
-  display:flex;
-  gap:6px;
-  padding:10px;
-}
-input{
-  flex:1;
-  padding:8px;
-  border-radius:10px;
-  border:none;
-}
-button{
-  padding:8px 12px;
-  border-radius:10px;
-  border:none;
-  background:#22c55e;
-}
-.footer{
-  text-align:center;
-  font-size:12px;
-  color:#aaa;
-  padding:6px;
-}
-</style>
+<link rel="stylesheet" href="style.css">
 </head>
-
 <body>
+
 <div class="app">
   <div class="header">
-    <h3>Random Text Chat</h3>
-    🟢 Online: <span id="online">0</span>
+    Random Text Chat
+    <div>🟢 Online: <span id="online">0</span></div>
   </div>
 
   <div class="gender">
-    <button onclick="setGender('girls')">👧 Girls</button>
     <button onclick="setGender('boys')">👦 Boys</button>
+    <button onclick="setGender('girls')">👧 Girls 💎</button>
     <button class="active" onclick="setGender('any')">🌐 Any</button>
   </div>
 
@@ -117,58 +30,23 @@ button{
     <button onclick="send()">Send</button>
   </div>
 
-  <button onclick="start()" style="width:100%;margin:8px">Start / Next</button>
+  <button class="start" onclick="start()">Start / Next</button>
 
-  <div class="footer">
-    Developed by <b>@sahirdailylife</b>
+  <!-- AD SLOT -->
+  <div class="ad">Your Ad Here</div>
+
+  <div class="footer">Developed by @sahirdailylife</div>
+</div>
+
+<div id="premiumBox" class="popup">
+  <div class="popup-inner">
+    <h2>💎 Girls Chat Premium</h2>
+    <p>Unlock girls chat</p>
+    <button onclick="pay()">Unlock ₹49</button>
+    <span onclick="closePremium()">Cancel</span>
   </div>
 </div>
 
-<script>
-window.addEventListener("load", () => {
-const socket = io();
-const chat = document.getElementById("chat");
-const status = document.getElementById("status");
-const typing = document.getElementById("typing");
-let gender="any", connected=false;
-
-function send(){
-  if(!msg.value) return;
-  socket.emit("message", msg.value);
-  addText("You", msg.value);
-  msg.value="";
-}
-
-socket.on("online-count", c => online.innerText=c);
-socket.on("waiting", ()=>{status.innerText="🔍 Waiting...";connected=false});
-socket.on("connected", ()=>{status.innerText="✅ Connected";connected=true});
-socket.on("partner-left", ()=>{status.innerText="❌ Disconnected";connected=false});
-socket.on("typing", ()=>{typing.innerText="Stranger typing...";setTimeout(()=>typing.innerText="",1000)});
-socket.on("message", m => add("Stranger",m));
-
-function start(){
-  chat.innerHTML="";
-  socket.emit("start-chat", gender);
-}
-
-function send(){
-  if(!msg.value || !connected) return;
-  socket.emit("message", msg.value);
-  add("You", msg.value);
-  msg.value="";
-}
-msg.oninput=()=>{
-  socket.emit("typing");
-};
-
-function add(who,txt){
-  const d=document.createElement("div");
-  d.className="msg";
-  d.innerHTML="<b>"+who+":</b> "+txt;
-  chat.appendChild(d);
-  chat.scrollTop=99999;
-}
-});
-</script>
+<script src="client.js"></script>
 </body>
 </html>
